@@ -1,0 +1,505 @@
+
+if game.PlaceId == 137758705131176 then
+
+-- ====================
+-- SERVICE & VARIABEL
+-- ====================
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local lp = Players.LocalPlayer
+local hrp = lp.Character:WaitForChild("HumanoidRootPart")
+
+-- Checkpoint CFrame Data
+local checkpoints = {
+    CFrame.new(-314.9534,190.088623,532.629822,0.00219619274,0,-0.999997556,0,1,0,0.999997556,0,0.00219619274),
+    CFrame.new(1101.0658,601.413635,-833.445618,-0.0197988749,0.0161172375,-0.999674022,-0.0179661736,0.999702871,0.0164735299,0.999642551,0.0182864759,-0.0195034742),
+    CFrame.new(514.111755,853.426575,-1771.2323,-0.999917984,0.00291335792,-0.0125015154,0.00278370199,0.999942303,0.0103761191,0.0125310235,0.0103404643,-0.999868393),
+    CFrame.new(-740.163025,864.528442,-1560.05737,0.999864399,-0.0163090359,0.00228231563,0.0163194966,0.999856055,-0.00464291032,-0.00220626569,0.00467952713,0.999986589),
+    CFrame.new(-2286.33447,1125.0531,-1397.27722,7.74860382e-06,-0.000793534797,0.999999702,0.00640905323,0.999979138,0.00079346844,-0.999979436,0.00640904531,1.28746033e-05)
+}
+local summitCF = CFrame.new(-1697.40552,1352.61743,-937.310974,0.998755157,0.0498706847,0.00102811866,-0.0498812795,0.998546004,0.0204379577,-7.36885704e-06,-0.0204638001,0.999790609)
+
+-- Fungsi Jump
+local function doJump()
+    local hum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+end
+
+-- Fungsi FireTouch
+local function fireTouch(part)
+    if hrp and part then
+        for i = 1,3 do  -- retry biar pasti ke-trigger
+            firetouchinterest(hrp, part, 0)
+            task.wait()
+            firetouchinterest(hrp, part, 1)
+        end
+    end
+end
+
+-- Dapetin part checkpoint & summit
+local function getCheckpointPart(i)
+    local model = workspace:FindFirstChild("Checkpoints")
+    if model and model:FindFirstChild("Checkpoint"..i) then
+        return model["Checkpoint"..i]
+    end
+    return nil
+end
+local function getSummitPart()
+    local model = workspace:FindFirstChild("Checkpoints")
+    if model and model:FindFirstChild("Summit") then
+        return model.Summit
+    end
+    return nil
+end
+
+-- Reset Climb Event
+local function resetClimb()
+    local ev = ReplicatedStorage:FindFirstChild("ResetClimbEvent")
+    if ev then ev:FireServer() end
+end
+
+-- ====================
+-- RAYFIELD UI
+-- ====================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+    Name = "Mount Kayu",
+    LoadingTitle = "Auto Summit Mount",
+    LoadingSubtitle = "by Zull",
+    Theme = "Amethyst",
+    DisableRayfieldPrompts = false,
+    KeySystem = false
+})
+
+-- TAB MAIN
+local Main = Window:CreateTab("Main", nil)
+Main:CreateSection("Autofarm Summit :")
+Main:CreateParagraph({Title="Auto Summit Info", Content="Pilih mode Auto Summit. Bisa langsung (Instant) atau Tween. Sudah include jeda & jump biar ga nyangkut."})
+
+-- Reset Button
+Main:CreateButton({
+    Name = "Reset Checkpoint",
+    Callback = function()
+        resetClimb()
+        doJump()
+    end
+})
+
+-- Flag AutoFarm
+local autoInstant = false
+local autoTween = false
+
+-- ====================
+-- AUTO SUMMIT INSTANT
+-- ====================
+Main:CreateToggle({
+    Name = "Auto Summit",
+    CurrentValue = false,
+    Flag = "AutoSummitInstant",
+    Callback = function(Value)
+        autoInstant = Value
+        task.spawn(function()
+            while autoInstant do
+                for i, cf in ipairs(checkpoints) do
+                    if not autoInstant then break end
+                    hrp.CFrame = cf
+                    task.wait(0.2)
+                    local cpPart = getCheckpointPart(i)
+                    if cpPart then fireTouch(cpPart) end
+                    doJump()
+                    task.wait(3) -- jeda biar kebaca
+                end
+                -- Summit
+                hrp.CFrame = summitCF
+                task.wait(0.2)
+                local sPart = getSummitPart()
+                if sPart then fireTouch(sPart) end
+                doJump()
+                task.wait(2)
+                -- Balik basecamp
+                resetClimb()
+                task.wait(1)
+                doJump()
+            end
+        end)
+    end
+})
+
+-- ====================
+-- AUTO SUMMIT TWEEN
+-- ====================
+Main:CreateToggle({
+    Name = "Auto Summit | Tween",
+    CurrentValue = false,
+    Flag = "AutoSummitTween",
+    Callback = function(Value)
+        autoTween = Value
+        task.spawn(function()
+            while autoTween do
+                for i, cf in ipairs(checkpoints) do
+                    if not autoTween then break end
+                    local tween = TweenService:Create(hrp, TweenInfo.new(3, Enum.EasingStyle.Linear), {CFrame = cf})
+                    tween:Play()
+                    tween.Completed:Wait()
+                    local cpPart = getCheckpointPart(i)
+                    if cpPart then fireTouch(cpPart) end
+                    doJump()
+                    task.wait(2)
+                end
+                -- Summit
+                local tween = TweenService:Create(hrp, TweenInfo.new(3, Enum.EasingStyle.Linear), {CFrame = summitCF})
+                tween:Play()
+                tween.Completed:Wait()
+                local sPart = getSummitPart()
+                if sPart then fireTouch(sPart) end
+                doJump()
+                task.wait(2)
+                -- Balik basecamp
+                resetClimb()
+                task.wait(1)
+                doJump()
+            end
+        end)
+    end
+})
+
+-- ====================
+-- TAB TOOLS
+-- ====================
+local Tools = Window:CreateTab("Tools", nil)
+
+-- TELEPORT SECTION
+Tools:CreateSection("Teleport :")
+Tools:CreateButton({
+    Name = "Teleport Basecamp",
+    Callback = function()
+        resetClimb()
+        task.wait(1)
+        doJump()
+    end
+})
+
+Tools:CreateButton({
+    Name = "Teleport Checkpoint 1",
+    Callback = function()
+        hrp.CFrame = checkpoints[1]
+        local part = getCheckpointPart(1)
+        if part then fireTouch(part) end
+        doJump()
+    end
+})
+Tools:CreateButton({
+    Name = "Teleport Checkpoint 2",
+    Callback = function()
+        hrp.CFrame = checkpoints[2]
+        local part = getCheckpointPart(2)
+        if part then fireTouch(part) end
+        doJump()
+    end
+})
+Tools:CreateButton({
+    Name = "Teleport Checkpoint 3",
+    Callback = function()
+        hrp.CFrame = checkpoints[3]
+        local part = getCheckpointPart(3)
+        if part then fireTouch(part) end
+        doJump()
+    end
+})
+Tools:CreateButton({
+    Name = "Teleport Checkpoint 4",
+    Callback = function()
+        hrp.CFrame = checkpoints[4]
+        local part = getCheckpointPart(4)
+        if part then fireTouch(part) end
+        doJump()
+    end
+})
+Tools:CreateButton({
+    Name = "Teleport Checkpoint 5",
+    Callback = function()
+        hrp.CFrame = checkpoints[5]
+        local part = getCheckpointPart(5)
+        if part then fireTouch(part) end
+        doJump()
+    end
+})
+Tools:CreateButton({
+    Name = "Teleport Summit",
+    Callback = function()
+        hrp.CFrame = summitCF
+        local part = getSummitPart()
+        if part then fireTouch(part) end
+        doJump()
+    end
+})
+
+-- ====================
+-- FLY TOOLS SECTION
+-- ====================
+Tools:CreateSection("Tools :")
+
+-- Variabel & fungsi Fly (dari script lu sebelumnya, biar bisa dipakai di game lain juga)
+local UserInputService = game:GetService("UserInputService")
+local IsOnMobile = UserInputService.TouchEnabled
+local FLYING = false
+local CONTROL = {F=0,B=0,L=0,R=0}
+local SPEED = 0
+local flyKeyDown, flyKeyUp, CFloop
+local iyflyspeed = 1
+local mobileFlyConn
+local CFspeed = 50
+local CF_UP = 0
+local CFloop
+local CFconnections = {}
+
+local function getRoot(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart")
+end
+
+-- Fly PC
+function sFLY()
+    if IsOnMobile then return end
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local humanoid = char:WaitForChild("Humanoid")
+    local T = getRoot(char)
+
+    if flyKeyDown then flyKeyDown:Disconnect() end
+    if flyKeyUp then flyKeyUp:Disconnect() end
+
+    FLYING = true
+    local BG = Instance.new("BodyGyro")
+    local BV = Instance.new("BodyVelocity")
+    BG.P = 9e4
+    BG.MaxTorque = Vector3.new(9e9,9e9,9e9)
+    BG.CFrame = T.CFrame
+    BG.Parent = T
+
+    BV.Velocity = Vector3.new(0,0,0)
+    BV.MaxForce = Vector3.new(9e9,9e9,9e9)
+    BV.Parent = T
+
+    flyKeyDown = UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.KeyCode == Enum.KeyCode.W then CONTROL.F = iyflyspeed end
+        if input.KeyCode == Enum.KeyCode.S then CONTROL.B = -iyflyspeed end
+        if input.KeyCode == Enum.KeyCode.A then CONTROL.L = -iyflyspeed end
+        if input.KeyCode == Enum.KeyCode.D then CONTROL.R = iyflyspeed end
+    end)
+
+    flyKeyUp = UserInputService.InputEnded:Connect(function(input, processed)
+        if input.KeyCode == Enum.KeyCode.W then CONTROL.F = 0 end
+        if input.KeyCode == Enum.KeyCode.S then CONTROL.B = 0 end
+        if input.KeyCode == Enum.KeyCode.A then CONTROL.L = 0 end
+        if input.KeyCode == Enum.KeyCode.D then CONTROL.R = 0 end
+    end)
+
+    task.spawn(function()
+        repeat task.wait()
+            local camera = workspace.CurrentCamera
+            if humanoid then humanoid.PlatformStand = true end
+
+            if CONTROL.L+CONTROL.R ~=0 or CONTROL.F+CONTROL.B ~=0 then
+                SPEED = 50
+            else
+                SPEED = 0
+            end
+
+            if SPEED ~= 0 then
+                BV.Velocity = ((camera.CFrame.LookVector*(CONTROL.F+CONTROL.B)) + ((camera.CFrame*CFrame.new(CONTROL.L+CONTROL.R,(CONTROL.F+CONTROL.B)*0.2,0).p) - camera.CFrame.p))*SPEED
+            else
+                BV.Velocity = Vector3.new(0,0,0)
+            end
+
+            BG.CFrame = camera.CFrame
+        until not FLYING
+
+        CONTROL = {F=0,B=0,L=0,R=0}
+        SPEED = 0
+        BG:Destroy()
+        BV:Destroy()
+        if humanoid then humanoid.PlatformStand = false end
+    end)
+end
+
+-- Mobile Fly
+function mobilefly(speaker)
+    FLYING = true
+    local char = speaker.Character or speaker.CharacterAdded:Wait()
+    local humanoid = char:WaitForChild("Humanoid")
+    local root = getRoot(char)
+    local camera = workspace.CurrentCamera
+    local controlModule = require(speaker.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Name = "MobileFlyBV"
+    bv.Parent = root
+    bv.MaxForce = Vector3.new(0,0,0)
+    bv.Velocity = Vector3.new(0,0,0)
+
+    local bg = Instance.new("BodyGyro")
+    bg.Name = "MobileFlyBG"
+    bg.Parent = root
+    bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+    bg.P = 1000
+    bg.D = 50
+
+    mobileFlyConn = RunService.RenderStepped:Connect(function()
+        if FLYING and root and humanoid and root:FindFirstChild("MobileFlyBV") and root:FindFirstChild("MobileFlyBG") then
+            bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+            bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+            humanoid.PlatformStand = true
+            bg.CFrame = camera.CFrame
+
+            local direction = controlModule:GetMoveVector()
+            local speed = iyflyspeed
+            bv.Velocity = (camera.CFrame.LookVector * -direction.Z + camera.CFrame.RightVector * direction.X) * speed * 50
+        end
+    end)
+end
+
+function unmobilefly(speaker)
+    FLYING = false
+    local char = speaker.Character
+    if char then
+        local root = getRoot(char)
+        if root:FindFirstChild("MobileFlyBV") then root.MobileFlyBV:Destroy() end
+        if root:FindFirstChild("MobileFlyBG") then root.MobileFlyBG:Destroy() end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.PlatformStand = false end
+    end
+    if mobileFlyConn then mobileFlyConn:Disconnect() mobileFlyConn = nil end
+end
+
+-- Stop Fly
+function NOFLY()
+    if IsOnMobile then
+        unmobilefly(lp)
+    else
+        FLYING = false
+        if flyKeyDown then flyKeyDown:Disconnect() end
+        if flyKeyUp then flyKeyUp:Disconnect() end
+        local char = lp.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid.PlatformStand = false end
+    end
+end
+
+-- Fly Mode Toggle
+Tools:CreateToggle({
+    Name = "Fly Mode",
+    CurrentValue = false,
+    Flag = "ToggleFly",
+    Callback = function(Value)
+        if Value then
+            if IsOnMobile then
+                mobilefly(lp)
+            else
+                sFLY()
+            end
+            Rayfield:Notify({Title="Fly Activated", Content="Terbang mode aktif!", Duration=3})
+        else
+            NOFLY()
+            Rayfield:Notify({Title="Fly Deactivated", Content="Fly mode dimatiin.", Duration=3})
+        end
+    end,
+})
+
+-- Fly Speed Slider
+Tools:CreateSlider({
+    Name = "Fly Speed",
+    Range = {0,100},
+    Increment = 1,
+    Suffix = " speed",
+    CurrentValue = 1,
+    Flag = "FlySpeed",
+    Callback = function(Value)
+        iyflyspeed = Value
+    end,
+})
+
+-- CFrame Fly
+Tools:CreateToggle({
+    Name = "CFrame Fly",
+    CurrentValue = false,
+    Flag = "ToggleCFrameFly",
+    Callback = function(Value)
+        local char = lp.Character or lp.CharacterAdded:Wait()
+        local humanoid = char:WaitForChild("Humanoid")
+        local Head = char:WaitForChild("Head")
+
+        if Value then
+            humanoid.PlatformStand = true
+            Head.Anchored = true
+
+            if CFloop then CFloop:Disconnect() end
+            for _, conn in pairs(CFconnections) do conn:Disconnect() end
+            CFconnections = {}
+
+            if not IsOnMobile then
+                local upConn = UserInputService.InputBegan:Connect(function(input, processed)
+                    if processed then return end
+                    if input.KeyCode == Enum.KeyCode.E then CF_UP = 1
+                    elseif input.KeyCode == Enum.KeyCode.Q then CF_UP = -1 end
+                end)
+                local downConn = UserInputService.InputEnded:Connect(function(input, processed)
+                    if input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.Q then CF_UP = 0 end
+                end)
+                table.insert(CFconnections, upConn)
+                table.insert(CFconnections, downConn)
+            end
+
+            CFloop = RunService.Heartbeat:Connect(function(deltaTime)
+                local camera = workspace.CurrentCamera
+                local moveVector = Vector3.new()
+
+                if IsOnMobile then
+                    local controlModule = require(lp.PlayerScripts:WaitForChild("PlayerModule"):WaitForChild("ControlModule"))
+                    local dir = controlModule:GetMoveVector()
+                    moveVector = (camera.CFrame.RightVector * dir.X + camera.CFrame.LookVector * -dir.Z)
+                else
+                    moveVector = (camera.CFrame.RightVector * CONTROL.R + camera.CFrame.RightVector * CONTROL.L + camera.CFrame.LookVector * CONTROL.F + camera.CFrame.LookVector * CONTROL.B)
+                end
+
+                moveVector = moveVector + Vector3.new(0, CF_UP, 0)
+
+                local headCFrame = Head.CFrame
+                local cameraCFrame = camera.CFrame
+                local cameraOffset = headCFrame:ToObjectSpace(cameraCFrame).Position
+                cameraCFrame = cameraCFrame * CFrame.new(-cameraOffset.X, -cameraOffset.Y, -cameraOffset.Z + 1)
+                local cameraPosition = cameraCFrame.Position
+                local headPosition = headCFrame.Position
+                local objectSpaceVelocity = CFrame.new(cameraPosition, Vector3.new(headPosition.X, cameraPosition.Y, headPosition.Z)):VectorToObjectSpace(moveVector)
+
+                Head.CFrame = CFrame.new(headPosition) * (cameraCFrame - cameraPosition) * CFrame.new(objectSpaceVelocity * CFspeed * deltaTime)
+            end)
+        else
+            if CFloop then CFloop:Disconnect() CFloop = nil end
+            for _, conn in pairs(CFconnections) do conn:Disconnect() end
+            CFconnections = {}
+
+            humanoid.PlatformStand = false
+            Head.Anchored = false
+            CF_UP = 0
+        end
+    end,
+})
+
+Tools:CreateSlider({
+    Name = "CFrame Fly Speed",
+    Range = {1,100},
+    Increment = 1,
+    Suffix = " speed",
+    CurrentValue = 50,
+    Flag = "CFrameFlySpeed",
+    Callback = function(Value)
+        CFspeed = Value
+    end
+})
+
+end
+
+end
